@@ -1,5 +1,6 @@
 const express = require("express");
 const Candidate = require("../models/Candidate");
+const User = require("../models/User");
 const authMiddleware = require("../middleware/authMiddleware");
 
 const router = express.Router();
@@ -16,6 +17,9 @@ router.get("/candidates", async (req, res) => {
 
 // Add a new candidate
 router.post("/candidates", authMiddleware, async (req, res) => {
+  if (!req.user.isAdmin) {
+    return res.status(403).json({ message: "Access denied" });
+  }
   const { name } = req.body;
   try {
     const newCandidate = new Candidate({ name });
@@ -28,6 +32,9 @@ router.post("/candidates", authMiddleware, async (req, res) => {
 
 // Edit a candidate
 router.put("/candidates/:id", authMiddleware, async (req, res) => {
+  if (!req.user.isAdmin) {
+    return res.status(403).json({ message: "Access denied" });
+  }
   const { name } = req.body;
   try {
     const candidate = await Candidate.findById(req.params.id);
@@ -44,6 +51,9 @@ router.put("/candidates/:id", authMiddleware, async (req, res) => {
 
 // Delete a candidate
 router.delete("/candidates/:id", authMiddleware, async (req, res) => {
+  if (!req.user.isAdmin) {
+    return res.status(403).json({ message: "Access denied" });
+  }
   try {
     const candidate = await Candidate.findById(req.params.id);
     if (!candidate) {
@@ -60,12 +70,18 @@ router.delete("/candidates/:id", authMiddleware, async (req, res) => {
 router.post("/vote", authMiddleware, async (req, res) => {
   const { candidateId } = req.body;
   try {
+    const user = await User.findById(req.user.userId);
+    if (user.hasVoted) {
+      return res.status(403).json({ message: "You have already voted" });
+    }
     const candidate = await Candidate.findById(candidateId);
     if (!candidate) {
       return res.status(404).json({ message: "Candidate not found" });
     }
     candidate.votes += 1;
     await candidate.save();
+    user.hasVoted = true;
+    await user.save();
     res.json({ message: "Vote cast successfully" });
   } catch (err) {
     res.status(500).json({ error: err.message });

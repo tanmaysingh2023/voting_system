@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const Login = ({ onLogin }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -16,7 +18,8 @@ const Login = ({ onLogin }) => {
       });
       const data = await response.json();
       if (response.ok) {
-        onLogin(data.token);
+        onLogin(data.token, data.isAdmin);
+        navigate(data.isAdmin ? '/admin-panel' : '/candidates');
       } else {
         alert(data.message);
       }

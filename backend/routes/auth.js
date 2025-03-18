@@ -18,25 +18,41 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// Login a user
+// Login a user or admin
 router.post("/login", async (req, res) => {
-    const { username, password } = req.body;
-    try {
-      const user = await User.findOne({ username });
-      if (!user) {
-        return res.status(400).json({ message: "Invalid credentials" });
-      }
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) {
-        return res.status(400).json({ message: "Invalid credentials" });
-      }
-      const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-        expiresIn: "1h",
-      });
-      res.json({ token });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
+  const { username, password } = req.body;
+  try {
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(400).json({ message: "Invalid credentials" });
     }
-  });
-  
-  module.exports = router;
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+    const token = jwt.sign({ userId: user._id, isAdmin: user.isAdmin }, process.env.JWT_SECRET, {
+      expiresIn: "1h",
+    });
+    res.json({ token, isAdmin: user.isAdmin });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Check if user is admin
+router.get("/isAdmin", async (req, res) => {
+  const token = req.header("Authorization").replace("Bearer ", "");
+  if (!token) {
+    return res.status(401).json({ message: "No token, authorization denied" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.userId);
+    res.json({ isAdmin: user.isAdmin });
+  } catch (err) {
+    res.status(401).json({ message: "Token is not valid" });
+  }
+});
+
+module.exports = router;
